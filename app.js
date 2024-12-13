@@ -1,345 +1,330 @@
-let audioContext;
-let analyser;
-let dataArray;
-let currentDbElement = document.getElementById("currentDb");
-let objectionElement = document.getElementById("objection");
-let startMessageElement = document.getElementById("startMessage");
-let threshold = 70;
-let interval = 100;
-let isObjectionReady = true;
-let cooldown = 1200;
-let cachedSounds = null;
-let volumeControl;
-let volumeValue;
-let currentVolume = 1;
-let thresholdControl;
-let thresholdValue;
+// App Configuration
+const CONFIG = {
+  SOUNDS: [
+    "en_franziskavonkarma.wav",
+    "en_godot.wav",
+    "en_manfredvonkarma.wav",
+    "en_milesedgeworth.wav",
+    "en_phoenixwright.wav",
+    "en_winstonpayne.wav",
+  ],
+  LANGUAGES: ["de", "en", "jp", "ko"],
+  SETTINGS_KEY: "slam2object-settings",
+  THRESHOLD_RANGE: { MIN: 40, MAX: 100, DEFAULT: 75 },
+  COOLDOWN: 1200,
+  CHARACTERS: {
+    random: "Random",
+    franziskavonkarma: "Franziska von Karma",
+    godot: "Godot",
+    manfredvonkarma: "Manfred von Karma",
+    milesedgeworth: "Miles Edgeworth",
+    phoenixwright: "Phoenix Wright",
+    winstonpayne: "Winston Payne",
+  },
+  THEMES: ["simple-dark", "simple-light", "court"],
+};
 
-const SOUND_FILES = [
-  "en_franziskavonkarma.wav",
-  "en_godot.wav",
-  "en_manfredvonkarma.wav",
-  "en_milesedgeworth.wav",
-  "en_phoenixwright.wav",
-  "en_winstonpayne.wav",
-];
+// App State
+const state = {
+  audio: {
+    context: null,
+    analyser: null,
+    dataArray: null,
+    buffers: {},
+    initialized: false,
+  },
+  settings: {
+    language: "en",
+    volume: 1,
+    threshold: CONFIG.THRESHOLD_RANGE.DEFAULT,
+    character: "random",
+    theme: "simple-dark",
+  },
+  ready: true,
+};
 
-const SUPPORTED_LANGUAGES = ["de", "en", "jp", "ko"];
-let currentLang = "en";
-let objectionImage = document.querySelector("#objection img");
+// DOM Elements
+const dom = {
+  currentDb: document.getElementById("currentDb"),
+  objection: document.getElementById("objection"),
+  message: document.getElementById("startMessage"),
+  controls: {
+    language: document.getElementById("language"),
+    volume: document.getElementById("volume"),
+    volumeValue: document.getElementById("volumeValue"),
+    threshold: document.getElementById("threshold"),
+    thresholdValue: document.getElementById("thresholdValue"),
+    character: document.getElementById("character"),
+    theme: document.getElementById("theme"),
+  },
+  objectionImage: document.querySelector("#objection img"),
+  resetButton: document.getElementById("resetButton"),
+  startOverlay: document.getElementById("startOverlay"),
+};
 
-let audioBuffers = {};
-let isAudioInitialized = false;
-
-async function initializeAudio() {
-  if (isAudioInitialized) return;
-
-  try {
-    // Use the existing audioContext instead of creating a new one
-    if (!audioContext) {
-      audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    }
-
-    // Load and decode all sound files
-    for (const sound of SOUND_FILES) {
-      const response = await fetch(`assets/sfx/${sound}`);
-      const arrayBuffer = await response.arrayBuffer();
-      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-      audioBuffers[sound] = audioBuffer;
-    }
-
-    isAudioInitialized = true;
-  } catch (error) {
-    console.error("Error initializing audio:", error);
-  }
-}
-
-async function playSound(buffer) {
-  try {
-    const source = audioContext.createBufferSource();
-    const gainNode = audioContext.createGain();
-
-    source.buffer = buffer;
-    gainNode.gain.setValueAtTime(currentVolume, audioContext.currentTime);
-
-    source.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-    source.start(0);
-
-    return new Promise((resolve) => {
-      source.onended = resolve;
-    });
-  } catch (error) {
-    console.error("Error playing sound:", error);
-  }
-}
-
-async function playRandomObjection() {
-  if (!isAudioInitialized) {
-    await initializeAudio();
-  }
-
-  if (!cachedSounds || cachedSounds.length === 0) {
-    console.error("No sound files available");
+// Audio Functions
+async function initAudio() {
+  if (!window.isSecureContext) {
+    dom.message.textContent = "Please use HTTPS for microphone access";
     return;
   }
 
-  const randomSound =
-    cachedSounds[Math.floor(Math.random() * cachedSounds.length)];
   try {
-    const buffer = audioBuffers[randomSound];
-    if (buffer) {
-      await playSound(buffer);
-    }
-  } catch (error) {
-    console.error("Error playing sound:", error);
+    state.audio.context = new (window.AudioContext ||
+      window.webkitAudioContext)();
+    state.audio.analyser = state.audio.context.createAnalyser();
+    state.audio.dataArray = new Uint8Array(state.audio.analyser.fftSize);
+
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    state.audio.context
+      .createMediaStreamSource(stream)
+      .connect(state.audio.analyser);
+    await loadSoundBuffers();
+
+    dom.message.style.display = "none";
+    dom.startOverlay.style.display = "none"; // Hide entire overlay instead
+    setInterval(checkVolume, 100);
+  } catch (err) {
+    dom.message.textContent =
+      err.name === "NotAllowedError"
+        ? "Please allow microphone access"
+        : `Error: ${err.message}`;
   }
 }
 
-async function loadSoundFiles() {
-  if (cachedSounds) return cachedSounds;
-  cachedSounds = SOUND_FILES;
-  return cachedSounds;
-}
-
-function getMediaDevices() {
-  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-    return navigator.mediaDevices.getUserMedia({ audio: true });
-  }
-
-  // Legacy support for older browsers
-  const getUserMedia =
-    navigator.getUserMedia ||
-    navigator.webkitGetUserMedia ||
-    navigator.mozGetUserMedia ||
-    navigator.msGetUserMedia;
-
-  if (!getUserMedia) {
-    startMessageElement.textContent =
-      "Microphone access not supported in this browser";
-    return Promise.reject(new Error("getUserMedia not supported"));
-  }
-
-  return new Promise((resolve, reject) => {
-    getUserMedia.call(navigator, { audio: true }, resolve, reject);
-  });
-}
-
-function checkSecureContext() {
-  if (!window.isSecureContext) {
-    startMessageElement.textContent = "Please use HTTPS for microphone access";
-    return false;
-  }
-  return true;
-}
-
-function initAudio() {
-  if (!checkSecureContext()) return;
-
-  if (!audioContext) {
-    audioContext = new (window.AudioContext || window.webkitAudioContext)();
-  }
-
-  analyser = audioContext.createAnalyser();
-  dataArray = new Uint8Array(analyser.fftSize);
-
-  // Initialize audio immediately
-  initializeAudio();
-
-  // Preload sound files
-  loadSoundFiles();
-
-  startMessageElement.textContent = "Requesting microphone access...";
-
-  getMediaDevices()
-    .then((stream) => {
-      let source = audioContext.createMediaStreamSource(stream);
-      source.connect(analyser);
-      setInterval(updateVolume, interval);
-      startMessageElement.style.display = "none";
+async function loadSoundBuffers() {
+  await Promise.all(
+    CONFIG.SOUNDS.map(async (sound) => {
+      const response = await fetch(`assets/sfx/${sound}`);
+      const buffer = await response.arrayBuffer();
+      state.audio.buffers[sound] = await state.audio.context.decodeAudioData(
+        buffer
+      );
     })
-    .catch((err) => {
-      console.error("Error:", err);
-      if (
-        err.name === "NotAllowedError" ||
-        err.name === "PermissionDeniedError"
-      ) {
-        startMessageElement.textContent =
-          "Please allow microphone access in your browser settings";
-      } else {
-        startMessageElement.textContent = "Error: " + err.message;
-      }
-    });
+  );
+  state.audio.initialized = true;
 }
 
-function setLanguage(lang) {
-  if (!SUPPORTED_LANGUAGES.includes(lang)) {
-    console.error("Unsupported language:", lang);
-    return false;
+// UI Functions
+function updateSlider(element, value, isThreshold = false) {
+  const percentage = isThreshold
+    ? ((value - CONFIG.THRESHOLD_RANGE.MIN) /
+        (CONFIG.THRESHOLD_RANGE.MAX - CONFIG.THRESHOLD_RANGE.MIN)) *
+      100
+    : value;
+  element.style.background = `linear-gradient(to right, var(--accent-color) 0%, var(--accent-color) ${percentage}%, var(--bg-color) ${percentage}%)`;
+  return percentage;
+}
+
+function updateSettings(key, value) {
+  if (key === "volume") {
+    state.settings[key] = parseInt(dom.controls.volume.value);
+  } else {
+    state.settings[key] = value;
   }
-  currentLang = lang;
-  objectionImage.src = `assets/img/${lang}_objection.png`;
-  return true;
+  localStorage.setItem(CONFIG.SETTINGS_KEY, JSON.stringify(state.settings));
 }
-
-// Add this new function for initial setup
-function initializeSettings() {
-  try {
-    const settings = JSON.parse(localStorage.getItem("slam2object-settings"));
-    if (settings) {
-      if (settings.language) {
-        currentLang = settings.language;
-        objectionImage.src = `assets/img/${currentLang}_objection.png`;
-      }
-      if (settings.volume !== undefined) {
-        currentVolume = convertToLogScale(settings.volume);
-      }
-    }
-  } catch (error) {
-    console.error("Error loading initial settings:", error);
-  }
-}
-
-function initApp() {
-  // Load initial language from URL or settings
-  const urlParams = new URLSearchParams(window.location.search);
-  const lang = urlParams.get("lang") || currentLang;
-  setLanguage(lang);
-
-  // Initialize controls
-  volumeControl = document.getElementById("volume");
-  volumeValue = document.getElementById("volumeValue");
-
-  // Initialize threshold control
-  thresholdControl = document.getElementById("threshold");
-  thresholdValue = document.getElementById("thresholdValue");
-
-  thresholdControl.addEventListener("input", (e) => {
-    threshold = parseInt(e.target.value);
-    updateThresholdSlider(threshold);
-  });
-
-  // Load and apply saved settings
-  loadSettings();
-
-  // Set up event listeners
-  document.getElementById("language").value = currentLang;
-  document.getElementById("language").addEventListener("change", (e) => {
-    setLanguage(e.target.value);
-    const url = new URL(window.location);
-    url.searchParams.set("lang", e.target.value);
-    window.history.replaceState({}, "", url);
-    saveSettings();
-  });
-
-  volumeControl.addEventListener("input", (e) => {
-    updateVolumeSlider(e.target.value);
-  });
-
-  initializeAudio();
-}
-
-// Run initial setup before click handler
-initializeSettings();
-
-// Update click handler
-document.addEventListener(
-  "click",
-  function initOnClick() {
-    if (!audioContext) {
-      initApp();
-      initAudio();
-      document.removeEventListener("click", initOnClick);
-    }
-  },
-  { once: true }
-);
 
 function convertToLogScale(value) {
-  // Convert linear slider (0-100) to logarithmic scale with better curve
   const minValue = 0.0001;
   const maxValue = 1;
-  const exp = 3; // Curve steepness
-
+  const exp = 3;
   return minValue + (maxValue - minValue) * Math.pow(value / 100, exp);
-}
-
-function saveSettings() {
-  const settings = {
-    volume: volumeControl.value,
-    language: currentLang,
-    threshold: threshold,
-  };
-  localStorage.setItem("slam2object-settings", JSON.stringify(settings));
 }
 
 function loadSettings() {
   try {
-    const settings = JSON.parse(localStorage.getItem("slam2object-settings"));
-    if (settings) {
-      if (settings.volume) {
-        volumeControl.value = settings.volume;
-        updateVolumeSlider(settings.volume);
-      }
-      if (settings.language) {
-        setLanguage(settings.language);
-        document.getElementById("language").value = settings.language;
-      }
-      if (settings.threshold) {
-        threshold = parseInt(settings.threshold);
-        thresholdControl.value = threshold;
-        updateThresholdSlider(threshold);
-      }
+    const saved = JSON.parse(localStorage.getItem(CONFIG.SETTINGS_KEY)) || {};
+    Object.assign(state.settings, saved);
+
+    // Apply saved settings
+    if (saved.language) setLanguage(saved.language);
+    if (saved.threshold !== undefined) {
+      dom.controls.threshold.value = saved.threshold;
+      updateThresholdSlider(saved.threshold);
+    }
+    if (saved.volume !== undefined) {
+      dom.controls.volume.value = saved.volume;
+      updateVolumeSlider(saved.volume);
+    }
+    if (saved.character) {
+      state.settings.character = saved.character;
+      dom.controls.character.value = saved.character;
+    }
+    if (saved.theme) {
+      setTheme(saved.theme);
+      dom.controls.theme.value = saved.theme;
     }
   } catch (error) {
     console.error("Error loading settings:", error);
   }
 }
 
-function updateVolumeSlider(value) {
-  volumeControl.style.background = `linear-gradient(to right, var(--accent-color) 0%, var(--accent-color) ${value}%, var(--bg-color) ${value}%)`;
-  volumeValue.textContent = `${Math.round(value)}%`;
-  currentVolume = convertToLogScale(value);
-  saveSettings();
-}
+// Event Handlers
+function resetApp() {
+  // Clear localStorage
+  localStorage.removeItem(CONFIG.SETTINGS_KEY);
 
-function normalizeThresholdValue(value) {
-  // Convert value from 40-100 range to 0-100 percentage
-  return ((value - 40) / 60) * 100;
-}
+  // Reset sliders to defaults
+  dom.controls.volume.value = 100;
+  dom.controls.threshold.value = CONFIG.THRESHOLD_RANGE.DEFAULT;
+  dom.controls.language.value = "en";
+  dom.controls.character.value = "random";
+  dom.controls.theme.value = "simple-dark";
 
-function updateThresholdSlider(value) {
-  const percentage = normalizeThresholdValue(value);
-  thresholdControl.style.background = `linear-gradient(to right, var(--accent-color) 0%, var(--accent-color) ${percentage}%, var(--bg-color) ${percentage}%, var(--bg-color) 100%)`;
-  thresholdValue.textContent = `${value}%`;
-  saveSettings();
-}
+  // Update UI
+  updateVolumeSlider(100);
+  updateThresholdSlider(CONFIG.THRESHOLD_RANGE.DEFAULT);
+  setLanguage("en");
+  setTheme("simple-dark");
 
-function getDb(value) {
-  return Math.round((value / 255) * 100); // Scale to 0-100dB range
-}
-
-function updateVolume() {
-  analyser.getByteFrequencyData(dataArray);
-  let current = getDb(Math.max(...dataArray));
-  currentDbElement.textContent = current;
-
-  if (current > threshold) {
-    objection();
+  // Clear cache and reload
+  if ("caches" in window) {
+    caches.delete("slam2object-cache").then(() => {
+      window.location.reload();
+    });
+  } else {
+    window.location.reload();
   }
 }
 
-function objection() {
-  if (!isObjectionReady) return;
+function initEventListeners() {
+  dom.controls.volume.addEventListener("input", (e) =>
+    updateVolumeSlider(e.target.value)
+  );
+  dom.controls.threshold.addEventListener("input", (e) =>
+    updateThresholdSlider(e.target.value)
+  );
+  dom.controls.language.addEventListener("change", (e) =>
+    setLanguage(e.target.value)
+  );
+  dom.controls.character.addEventListener("change", (e) => {
+    state.settings.character = e.target.value;
+    updateSettings("character", e.target.value);
+  });
+  dom.controls.theme.addEventListener("change", (e) =>
+    setTheme(e.target.value)
+  );
+  dom.resetButton.addEventListener("click", resetApp);
+}
 
-  isObjectionReady = false;
-  objectionElement.style.display = "block";
-  playRandomObjection();
+function updateVolumeSlider(value) {
+  updateSlider(dom.controls.volume, value);
+  dom.controls.volumeValue.textContent = `${value}%`;
+  state.settings.volume = value;
+  state.audio.volume = convertToLogScale(value);
+  updateSettings("volume", value);
+}
+
+function updateThresholdSlider(value) {
+  updateSlider(dom.controls.threshold, value, true);
+  dom.controls.thresholdValue.textContent = `${value}%`;
+  state.settings.threshold = parseInt(value);
+  updateSettings("threshold", state.settings.threshold);
+}
+
+function setLanguage(lang) {
+  if (CONFIG.LANGUAGES.includes(lang)) {
+    state.settings.language = lang;
+    dom.objectionImage.src = `assets/img/${lang}_objection.png`;
+    updateSettings("language", lang);
+  }
+}
+
+function setTheme(theme) {
+  if (CONFIG.THEMES.includes(theme)) {
+    let bg = document.querySelector(".background-image");
+
+    // Handle background transitions
+    const handleThemeChange = () => {
+      // Set theme attribute
+      document.documentElement.setAttribute("data-theme", theme);
+
+      // Add new background if court theme
+      if (theme === "court") {
+        bg = document.createElement("div");
+        bg.className = "background-image";
+        document.body.appendChild(bg);
+        // Force reflow then show
+        bg.offsetHeight;
+        requestAnimationFrame(() => bg.classList.add("visible"));
+      }
+
+      state.settings.theme = theme;
+      updateSettings("theme", theme);
+    };
+
+    // Remove existing background with transition
+    if (bg) {
+      bg.classList.remove("visible");
+      bg.addEventListener(
+        "transitionend",
+        () => {
+          bg.remove();
+          handleThemeChange();
+        },
+        { once: true }
+      );
+    } else {
+      handleThemeChange();
+    }
+  }
+}
+
+// Core Functionality
+function checkVolume() {
+  state.audio.analyser.getByteFrequencyData(state.audio.dataArray);
+  const current = Math.round((Math.max(...state.audio.dataArray) / 255) * 100);
+  dom.currentDb.textContent = current;
+
+  if (current >= state.settings.threshold && state.ready) {
+    triggerObjection();
+  }
+}
+
+async function triggerObjection() {
+  state.ready = false;
+  dom.objection.style.display = "block";
+
+  try {
+    let soundFile;
+    if (state.settings.character === "random") {
+      soundFile =
+        CONFIG.SOUNDS[Math.floor(Math.random() * CONFIG.SOUNDS.length)];
+    } else {
+      soundFile = `${state.settings.language}_${state.settings.character}.wav`;
+    }
+
+    const source = state.audio.context.createBufferSource();
+    const gain = state.audio.context.createGain();
+
+    source.buffer = state.audio.buffers[soundFile];
+    gain.gain.setValueAtTime(
+      convertToLogScale(state.settings.volume),
+      state.audio.context.currentTime
+    );
+    source.connect(gain).connect(state.audio.context.destination);
+    source.start(0);
+  } catch (error) {
+    console.error("Error playing sound:", error);
+  }
 
   setTimeout(() => {
-    objectionElement.style.display = "none";
-    setTimeout(() => {
-      isObjectionReady = true;
-    }, cooldown);
+    dom.objection.style.display = "none";
+    setTimeout(() => (state.ready = true), CONFIG.COOLDOWN);
   }, 1000);
 }
+
+// Initialization
+document.addEventListener(
+  "click",
+  function init() {
+    if (!state.audio.context) {
+      loadSettings();
+      initEventListeners();
+      initAudio();
+      document.removeEventListener("click", init);
+    }
+  },
+  { once: true }
+);

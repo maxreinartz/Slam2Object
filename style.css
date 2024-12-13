@@ -13,6 +13,9 @@
   --base-size: clamp(16px, calc(14px + 0.5vw), 20px);
   --spacing-unit: clamp(0.5rem, calc(0.5rem + 1vw), 2rem);
   --card-width: clamp(280px, 90vw, 400px);
+  --bg-image: none;
+  --bg-blur: 0px;
+  --bg-overlay: none;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -24,12 +27,36 @@
   }
 }
 
+[data-theme="simple-dark"] {
+  --bg-color: #1a1a1a;
+  --text-color: #ffffff;
+  --card-bg: #2d2d2d;
+  --shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="simple-light"] {
+  --bg-color: #ffffff;
+  --text-color: #333333;
+  --card-bg: #f5f5f5;
+  --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="court"] {
+  --bg-image: url("/assets/img/court-bg.png");
+  --bg-blur: 5px;
+  --bg-overlay: rgba(0, 0, 0, 0.5);
+  --bg-color: #1a1a1a;
+  --text-color: #ffffff;
+  --card-bg: rgba(45, 45, 45, 0.4);
+  --shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+}
+
 body {
   font-family: "ModeMina", "Segoe UI", system-ui, sans-serif;
-  background-color: var(--bg-color);
+  background: var(--bg-color);
   color: var(--text-color);
   text-align: center;
-  padding: var(--spacing-unit) 0; /* Remove horizontal padding */
+  padding: var(--spacing-unit) 0;
   line-height: 1.6;
   transition: background-color 0.3s ease;
   min-height: 100vh;
@@ -37,10 +64,52 @@ body {
   flex-direction: column;
   justify-content: center;
   font-size: var(--base-size);
-  gap: var(--spacing-unit);
-  padding-bottom: calc(var(--spacing-unit) * 2);
+  gap: calc(var(--spacing-unit) * 0.75);
+  padding-bottom: calc(var(--spacing-unit) * 3.5);
   position: relative;
   box-sizing: border-box;
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  backdrop-filter: blur(var(--bg-blur));
+  -webkit-backdrop-filter: blur(var(--bg-blur));
+  margin: 0;
+  min-width: 100vw;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--bg-overlay);
+  pointer-events: none;
+  z-index: -1;
+  margin: 0;
+}
+
+.background-image {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: var(--bg-image);
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  opacity: 0;
+  transition: opacity 0.3s ease-in-out;
+  z-index: -2;
+  pointer-events: none;
+  will-change: opacity;
+}
+
+.background-image.visible {
+  opacity: 1;
 }
 
 h1 {
@@ -69,14 +138,14 @@ h1 {
 
 .card {
   background: var(--card-bg);
-  padding: var(--spacing-unit);
+  padding: calc(var(--spacing-unit) * 0.75);
   border-radius: min(3vw, 1rem);
   box-shadow: var(--shadow);
-  margin: calc(var(--spacing-unit) * 0.5) auto;
+  margin: calc(var(--spacing-unit) * 0.25) auto;
   width: var(--card-width);
   display: flex;
   flex-direction: column;
-  gap: 2vh;
+  gap: calc(var(--spacing-unit) * 0.5);
 }
 
 #currentDb {
@@ -102,9 +171,65 @@ h1 {
   }
 }
 
+@keyframes bgFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.overlay-content {
+  background: var(--card-bg);
+  padding: calc(var(--spacing-unit) * 2);
+  border-radius: min(3vw, 1rem);
+  box-shadow: var(--shadow);
+  text-align: center;
+  max-width: 90vw;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.overlay-content h2 {
+  font-size: clamp(1.8rem, calc(1.8rem + 2vw), 3rem);
+  margin-bottom: calc(var(--spacing-unit) * 1.5);
+  color: var(--accent-color);
+}
+
+.overlay-content p {
+  font-size: clamp(1.2rem, calc(1.2rem + 1vw), 2rem);
+  opacity: 0.9;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 .settings h2 {
-  font-size: clamp(1.2rem, calc(1.2rem + 1vw), 1.8rem);
-  margin: 0 0 calc(var(--spacing-unit) * 0.5) 0;
+  font-size: clamp(1rem, calc(1rem + 1vw), 1.6rem);
+  margin: 0 0 calc(var(--spacing-unit) * 0.25) 0;
 }
 
 .setting-item {
@@ -112,7 +237,7 @@ h1 {
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
-  padding: calc(var(--spacing-unit) * 0.25); /* Reduced from 0.5 to 0.25 */
+  padding: calc(var(--spacing-unit) * 0.2);
 }
 
 .setting-item select {
@@ -160,15 +285,31 @@ h1 {
   text-align: right;
 }
 
+.reset-button {
+  margin-top: calc(var(--spacing-unit) * 0.5);
+  padding: calc(var(--spacing-unit) * 0.5);
+  background: var(--bg-color);
+  color: var(--accent-color);
+  border: 2px solid var(--accent-color);
+  border-radius: 0.5rem;
+  font-family: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.reset-button:hover {
+  background: var(--accent-color);
+  color: var(--bg-color);
+}
+
 footer {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
-  font-size: 0.9rem;
-  opacity: 0.8;
-  padding: var(--spacing-unit) 0; /* Remove horizontal padding */
-  box-sizing: border-box;
+  padding: calc(var(--spacing-unit) * 0.25) 0;
+  font-size: clamp(0.6rem, calc(0.6rem + 0.25vw), 6rem);
 }
 
 footer a {
@@ -179,6 +320,27 @@ footer a {
 
 footer a:hover {
   opacity: 0.8;
+}
+
+@media (max-width: 480px) {
+  :root {
+    --base-size: clamp(14px, calc(12px + 0.5vw), 16px);
+    --spacing-unit: clamp(0.4rem, calc(0.4rem + 1vw), 1.5rem);
+  }
+
+  .setting-item {
+    flex-wrap: wrap;
+  }
+
+  .setting-item label {
+    width: 100%;
+    margin-bottom: calc(var(--spacing-unit) * 0.25);
+  }
+
+  #volumeValue,
+  #thresholdValue {
+    min-width: 2.5em;
+  }
 }
 
 @media (max-height: 600px) {
