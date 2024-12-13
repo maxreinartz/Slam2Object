@@ -23,6 +23,15 @@ const SUPPORTED_LANGUAGES = ["de", "en", "jp", "ko"];
 let currentLang = "en";
 let objectionImage = document.querySelector("#objection img");
 
+let audioCache = {};
+
+// Add this function to preload sounds
+async function preloadSounds() {
+  for (const sound of SOUND_FILES) {
+    audioCache[sound] = new Audio(`assets/sfx/${sound}`);
+  }
+}
+
 async function loadSoundFiles() {
   if (cachedSounds) return cachedSounds;
   cachedSounds = SOUND_FILES;
@@ -121,6 +130,9 @@ function initApp() {
     url.searchParams.set("lang", e.target.value);
     window.history.replaceState({}, "", url);
   });
+
+  // Preload sounds on first interaction
+  preloadSounds();
 }
 
 // Modify the existing event listener to call initApp
@@ -163,8 +175,11 @@ async function playRandomObjection() {
   const randomSound =
     cachedSounds[Math.floor(Math.random() * cachedSounds.length)];
   try {
-    const sound = new Audio(`assets/sfx/${randomSound}`);
-    await sound.play();
+    const audio = audioCache[randomSound];
+    if (audio) {
+      audio.currentTime = 0;
+      await audio.play();
+    }
   } catch (error) {
     console.error("Error playing sound:", error);
   }
