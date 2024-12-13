@@ -9,7 +9,9 @@
     <title>Slam2Object</title>
     <link rel="manifest" href="manifest.json" />
     <link rel="stylesheet" href="style.css" />
-    <link rel="icon" href="assets/icon.jpg" type="image/jpg" />
+    <link rel="icon" href="assets/icon.jpg" sizes="any" />
+    <link rel="apple-touch-icon" href="assets/icon.jpg" />
+    <meta name="theme-color" content="#1a1a1a" />
   </head>
   <body>
     <div id="objection">
@@ -35,6 +37,11 @@
         <label for="volume">Volume:</label>
         <input type="range" id="volume" min="0" max="100" value="100" />
         <span id="volumeValue">100%</span>
+      </div>
+      <div class="setting-item">
+        <label for="threshold">Sensitivity:</label>
+        <input type="range" id="threshold" min="40" max="100" value="75" />
+        <span id="thresholdValue">75%</span>
       </div>
     </div>
     <footer>

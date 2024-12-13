@@ -12,6 +12,8 @@ let cachedSounds = null;
 let volumeControl;
 let volumeValue;
 let currentVolume = 1;
+let thresholdControl;
+let thresholdValue;
 
 const SOUND_FILES = [
   "en_franziskavonkarma.wav",
@@ -208,6 +210,15 @@ function initApp() {
   volumeControl = document.getElementById("volume");
   volumeValue = document.getElementById("volumeValue");
 
+  // Initialize threshold control
+  thresholdControl = document.getElementById("threshold");
+  thresholdValue = document.getElementById("thresholdValue");
+
+  thresholdControl.addEventListener("input", (e) => {
+    threshold = parseInt(e.target.value);
+    updateThresholdSlider(threshold);
+  });
+
   // Load and apply saved settings
   loadSettings();
 
@@ -257,6 +268,7 @@ function saveSettings() {
   const settings = {
     volume: volumeControl.value,
     language: currentLang,
+    threshold: threshold,
   };
   localStorage.setItem("slam2object-settings", JSON.stringify(settings));
 }
@@ -273,6 +285,11 @@ function loadSettings() {
         setLanguage(settings.language);
         document.getElementById("language").value = settings.language;
       }
+      if (settings.threshold) {
+        threshold = parseInt(settings.threshold);
+        thresholdControl.value = threshold;
+        updateThresholdSlider(threshold);
+      }
     }
   } catch (error) {
     console.error("Error loading settings:", error);
@@ -283,6 +300,18 @@ function updateVolumeSlider(value) {
   volumeControl.style.background = `linear-gradient(to right, var(--accent-color) 0%, var(--accent-color) ${value}%, var(--bg-color) ${value}%)`;
   volumeValue.textContent = `${Math.round(value)}%`;
   currentVolume = convertToLogScale(value);
+  saveSettings();
+}
+
+function normalizeThresholdValue(value) {
+  // Convert value from 40-100 range to 0-100 percentage
+  return ((value - 40) / 60) * 100;
+}
+
+function updateThresholdSlider(value) {
+  const percentage = normalizeThresholdValue(value);
+  thresholdControl.style.background = `linear-gradient(to right, var(--accent-color) 0%, var(--accent-color) ${percentage}%, var(--bg-color) ${percentage}%, var(--bg-color) 100%)`;
+  thresholdValue.textContent = `${value}%`;
   saveSettings();
 }
 
