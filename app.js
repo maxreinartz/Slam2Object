@@ -30,14 +30,16 @@ async function initializeAudio() {
   if (isAudioInitialized) return;
 
   try {
-    // Create a single audio context for all sounds
-    const context = new (window.AudioContext || window.webkitAudioContext)();
+    // Use the existing audioContext instead of creating a new one
+    if (!audioContext) {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
 
     // Load and decode all sound files
     for (const sound of SOUND_FILES) {
       const response = await fetch(`assets/sfx/${sound}`);
       const arrayBuffer = await response.arrayBuffer();
-      const audioBuffer = await context.decodeAudioData(arrayBuffer);
+      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
       audioBuffers[sound] = audioBuffer;
     }
 
@@ -48,16 +50,18 @@ async function initializeAudio() {
 }
 
 async function playSound(buffer) {
-  if (!audioContext) return;
+  try {
+    const source = audioContext.createBufferSource();
+    source.buffer = buffer;
+    source.connect(audioContext.destination);
+    source.start(0);
 
-  const source = audioContext.createBufferSource();
-  source.buffer = buffer;
-  source.connect(audioContext.destination);
-  source.start(0);
-
-  return new Promise((resolve) => {
-    source.onended = resolve;
-  });
+    return new Promise((resolve) => {
+      source.onended = resolve;
+    });
+  } catch (error) {
+    console.error("Error playing sound:", error);
+  }
 }
 
 async function playRandomObjection() {
@@ -122,9 +126,15 @@ function checkSecureContext() {
 function initAudio() {
   if (!checkSecureContext()) return;
 
-  audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  if (!audioContext) {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  }
+
   analyser = audioContext.createAnalyser();
   dataArray = new Uint8Array(analyser.fftSize);
+
+  // Initialize audio immediately
+  initializeAudio();
 
   // Preload sound files
   loadSoundFiles();
