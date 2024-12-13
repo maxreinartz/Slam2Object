@@ -1,0 +1,16 @@
+
+{
+    "name": "Slam2Object",
+    "short_name": "Slam2Object",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "description": "A PWA to detect loud sounds and display 'Objection!'",
+    "icons": [
+        {
+            "src": "icon.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        }
+    ]
+}
