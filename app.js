@@ -23,12 +23,62 @@ const SUPPORTED_LANGUAGES = ["de", "en", "jp", "ko"];
 let currentLang = "en";
 let objectionImage = document.querySelector("#objection img");
 
-let audioCache = {};
+let audioBuffers = {};
+let isAudioInitialized = false;
 
-// Add this function to preload sounds
-async function preloadSounds() {
-  for (const sound of SOUND_FILES) {
-    audioCache[sound] = new Audio(`assets/sfx/${sound}`);
+async function initializeAudio() {
+  if (isAudioInitialized) return;
+
+  try {
+    // Create a single audio context for all sounds
+    const context = new (window.AudioContext || window.webkitAudioContext)();
+
+    // Load and decode all sound files
+    for (const sound of SOUND_FILES) {
+      const response = await fetch(`assets/sfx/${sound}`);
+      const arrayBuffer = await response.arrayBuffer();
+      const audioBuffer = await context.decodeAudioData(arrayBuffer);
+      audioBuffers[sound] = audioBuffer;
+    }
+
+    isAudioInitialized = true;
+  } catch (error) {
+    console.error("Error initializing audio:", error);
+  }
+}
+
+async function playSound(buffer) {
+  if (!audioContext) return;
+
+  const source = audioContext.createBufferSource();
+  source.buffer = buffer;
+  source.connect(audioContext.destination);
+  source.start(0);
+
+  return new Promise((resolve) => {
+    source.onended = resolve;
+  });
+}
+
+async function playRandomObjection() {
+  if (!isAudioInitialized) {
+    await initializeAudio();
+  }
+
+  if (!cachedSounds || cachedSounds.length === 0) {
+    console.error("No sound files available");
+    return;
+  }
+
+  const randomSound =
+    cachedSounds[Math.floor(Math.random() * cachedSounds.length)];
+  try {
+    const buffer = audioBuffers[randomSound];
+    if (buffer) {
+      await playSound(buffer);
+    }
+  } catch (error) {
+    console.error("Error playing sound:", error);
   }
 }
 
@@ -102,7 +152,6 @@ function initAudio() {
     });
 }
 
-// Add this new function
 function setLanguage(lang) {
   if (!SUPPORTED_LANGUAGES.includes(lang)) {
     console.error("Unsupported language:", lang);
@@ -131,8 +180,8 @@ function initApp() {
     window.history.replaceState({}, "", url);
   });
 
-  // Preload sounds on first interaction
-  preloadSounds();
+  // Initialize audio on first interaction
+  initializeAudio();
 }
 
 // Modify the existing event listener to call initApp
@@ -159,29 +208,6 @@ function updateVolume() {
 
   if (current > threshold) {
     objection();
-  }
-}
-
-async function playRandomObjection() {
-  if (!cachedSounds) {
-    await loadSoundFiles();
-  }
-
-  if (!cachedSounds || cachedSounds.length === 0) {
-    console.error("No sound files available");
-    return;
-  }
-
-  const randomSound =
-    cachedSounds[Math.floor(Math.random() * cachedSounds.length)];
-  try {
-    const audio = audioCache[randomSound];
-    if (audio) {
-      audio.currentTime = 0;
-      await audio.play();
-    }
-  } catch (error) {
-    console.error("Error playing sound:", error);
   }
 }
 
