@@ -72,12 +72,11 @@ h1 {
   padding: var(--spacing-unit);
   border-radius: min(3vw, 1rem);
   box-shadow: var(--shadow);
-  margin: calc(var(--spacing-unit) * 0.5) auto; /* Center cards */
+  margin: calc(var(--spacing-unit) * 0.5) auto;
+  width: var(--card-width);
   display: flex;
   flex-direction: column;
   gap: 2vh;
-  box-sizing: border-box;
-  max-width: min(90vw, 400px); /* Use max-width instead of width */
 }
 
 #currentDb {
