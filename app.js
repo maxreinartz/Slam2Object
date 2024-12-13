@@ -4,8 +4,30 @@ let dataArray;
 let currentDbElement = document.getElementById("currentDb");
 let objectionElement = document.getElementById("objection");
 let startMessageElement = document.getElementById("startMessage");
-let threshold = 70; // dB threshold for "Objection"
-let interval = 100; // Update interval in milliseconds
+let threshold = 70;
+let interval = 100;
+let isObjectionReady = true;
+let cooldown = 1200;
+let cachedSounds = null;
+
+const SOUND_FILES = [
+  "en_franziskavonkarma.wav",
+  "en_godot.wav",
+  "en_manfredvonkarma.wav",
+  "en_milesedgeworth.wav",
+  "en_phoenixwright.wav",
+  "en_winstonpayne.wav",
+];
+
+const SUPPORTED_LANGUAGES = ["de", "en", "jp", "ko"];
+let currentLang = "en";
+let objectionImage = document.querySelector("#objection img");
+
+async function loadSoundFiles() {
+  if (cachedSounds) return cachedSounds;
+  cachedSounds = SOUND_FILES;
+  return cachedSounds;
+}
 
 function getMediaDevices() {
   if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
@@ -45,6 +67,9 @@ function initAudio() {
   analyser = audioContext.createAnalyser();
   dataArray = new Uint8Array(analyser.fftSize);
 
+  // Preload sound files
+  loadSoundFiles();
+
   startMessageElement.textContent = "Requesting microphone access...";
 
   getMediaDevices()
@@ -68,11 +93,42 @@ function initAudio() {
     });
 }
 
-// Initialize audio on user interaction
+// Add this new function
+function setLanguage(lang) {
+  if (!SUPPORTED_LANGUAGES.includes(lang)) {
+    console.error("Unsupported language:", lang);
+    return false;
+  }
+  currentLang = lang;
+  objectionImage.src = `assets/img/${lang}_objection.png`;
+  return true;
+}
+
+// Add language parameter to URL handling
+function initApp() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const lang = urlParams.get("lang") || "en";
+  setLanguage(lang);
+
+  // Set initial language selection
+  document.getElementById("language").value = currentLang;
+
+  // Add language change listener
+  document.getElementById("language").addEventListener("change", (e) => {
+    setLanguage(e.target.value);
+    // Update URL without reload
+    const url = new URL(window.location);
+    url.searchParams.set("lang", e.target.value);
+    window.history.replaceState({}, "", url);
+  });
+}
+
+// Modify the existing event listener to call initApp
 document.addEventListener(
   "click",
   function initOnClick() {
     if (!audioContext) {
+      initApp();
       initAudio();
       document.removeEventListener("click", initOnClick);
     }
@@ -94,9 +150,37 @@ function updateVolume() {
   }
 }
 
+async function playRandomObjection() {
+  if (!cachedSounds) {
+    await loadSoundFiles();
+  }
+
+  if (!cachedSounds || cachedSounds.length === 0) {
+    console.error("No sound files available");
+    return;
+  }
+
+  const randomSound =
+    cachedSounds[Math.floor(Math.random() * cachedSounds.length)];
+  try {
+    const sound = new Audio(`assets/sfx/${randomSound}`);
+    await sound.play();
+  } catch (error) {
+    console.error("Error playing sound:", error);
+  }
+}
+
 function objection() {
+  if (!isObjectionReady) return;
+
+  isObjectionReady = false;
   objectionElement.style.display = "block";
+  playRandomObjection();
+
   setTimeout(() => {
     objectionElement.style.display = "none";
+    setTimeout(() => {
+      isObjectionReady = true;
+    }, cooldown);
   }, 1000);
 }

@@ -2,26 +2,35 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
     <title>Slam2Object</title>
     <link rel="manifest" href="manifest.json" />
-    <style>
-      body {
-        font-family: Arial, sans-serif;
-        text-align: center;
-      }
-      #objection {
-        display: none;
-        font-size: 2em;
-        color: red;
-      }
-    </style>
+    <link rel="stylesheet" href="style.css" />
   </head>
   <body>
+    <div id="objection">
+      <img src="assets/img/en_objection.png" alt="Objection!" />
+    </div>
     <h1>Slam2Object</h1>
-    <div id="objection">Objection!</div>
-    <p>Current dB: <span id="currentDb">0</span></p>
-    <p id="startMessage">Tap anywhere to start</p>
+    <div class="card">
+      <p>Current dB: <span id="currentDb">0</span></p>
+      <p id="startMessage">Tap anywhere to start</p>
+    </div>
+    <div class="card settings">
+      <h2>Settings</h2>
+      <div class="setting-item">
+        <label for="language">Language:</label>
+        <select id="language">
+          <option value="en">English</option>
+          <option value="jp">Japanese</option>
+          <option value="ko">Korean</option>
+          <option value="de">German</option>
+        </select>
+      </div>
+    </div>
     <script src="app.js"></script>
   </body>
 </html>
