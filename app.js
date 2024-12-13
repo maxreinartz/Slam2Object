@@ -9,6 +9,9 @@ let interval = 100;
 let isObjectionReady = true;
 let cooldown = 1200;
 let cachedSounds = null;
+let volumeControl;
+let volumeValue;
+let currentVolume = 1;
 
 const SOUND_FILES = [
   "en_franziskavonkarma.wav",
@@ -52,8 +55,13 @@ async function initializeAudio() {
 async function playSound(buffer) {
   try {
     const source = audioContext.createBufferSource();
+    const gainNode = audioContext.createGain();
+
     source.buffer = buffer;
-    source.connect(audioContext.destination);
+    gainNode.gain.setValueAtTime(currentVolume, audioContext.currentTime);
+
+    source.connect(gainNode);
+    gainNode.connect(audioContext.destination);
     source.start(0);
 
     return new Promise((resolve) => {
@@ -172,29 +180,58 @@ function setLanguage(lang) {
   return true;
 }
 
-// Add language parameter to URL handling
+// Add this new function for initial setup
+function initializeSettings() {
+  try {
+    const settings = JSON.parse(localStorage.getItem("slam2object-settings"));
+    if (settings) {
+      if (settings.language) {
+        currentLang = settings.language;
+        objectionImage.src = `assets/img/${currentLang}_objection.png`;
+      }
+      if (settings.volume !== undefined) {
+        currentVolume = convertToLogScale(settings.volume);
+      }
+    }
+  } catch (error) {
+    console.error("Error loading initial settings:", error);
+  }
+}
+
 function initApp() {
+  // Load initial language from URL or settings
   const urlParams = new URLSearchParams(window.location.search);
-  const lang = urlParams.get("lang") || "en";
+  const lang = urlParams.get("lang") || currentLang;
   setLanguage(lang);
 
-  // Set initial language selection
-  document.getElementById("language").value = currentLang;
+  // Initialize controls
+  volumeControl = document.getElementById("volume");
+  volumeValue = document.getElementById("volumeValue");
 
-  // Add language change listener
+  // Load and apply saved settings
+  loadSettings();
+
+  // Set up event listeners
+  document.getElementById("language").value = currentLang;
   document.getElementById("language").addEventListener("change", (e) => {
     setLanguage(e.target.value);
-    // Update URL without reload
     const url = new URL(window.location);
     url.searchParams.set("lang", e.target.value);
     window.history.replaceState({}, "", url);
+    saveSettings();
   });
 
-  // Initialize audio on first interaction
+  volumeControl.addEventListener("input", (e) => {
+    updateVolumeSlider(e.target.value);
+  });
+
   initializeAudio();
 }
 
-// Modify the existing event listener to call initApp
+// Run initial setup before click handler
+initializeSettings();
+
+// Update click handler
 document.addEventListener(
   "click",
   function initOnClick() {
@@ -206,6 +243,48 @@ document.addEventListener(
   },
   { once: true }
 );
+
+function convertToLogScale(value) {
+  // Convert linear slider (0-100) to logarithmic scale with better curve
+  const minValue = 0.0001;
+  const maxValue = 1;
+  const exp = 3; // Curve steepness
+
+  return minValue + (maxValue - minValue) * Math.pow(value / 100, exp);
+}
+
+function saveSettings() {
+  const settings = {
+    volume: volumeControl.value,
+    language: currentLang,
+  };
+  localStorage.setItem("slam2object-settings", JSON.stringify(settings));
+}
+
+function loadSettings() {
+  try {
+    const settings = JSON.parse(localStorage.getItem("slam2object-settings"));
+    if (settings) {
+      if (settings.volume) {
+        volumeControl.value = settings.volume;
+        updateVolumeSlider(settings.volume);
+      }
+      if (settings.language) {
+        setLanguage(settings.language);
+        document.getElementById("language").value = settings.language;
+      }
+    }
+  } catch (error) {
+    console.error("Error loading settings:", error);
+  }
+}
+
+function updateVolumeSlider(value) {
+  volumeControl.style.background = `linear-gradient(to right, var(--accent-color) 0%, var(--accent-color) ${value}%, var(--bg-color) ${value}%)`;
+  volumeValue.textContent = `${Math.round(value)}%`;
+  currentVolume = convertToLogScale(value);
+  saveSettings();
+}
 
 function getDb(value) {
   return Math.round((value / 255) * 100); // Scale to 0-100dB range

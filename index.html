@@ -9,6 +9,7 @@
     <title>Slam2Object</title>
     <link rel="manifest" href="manifest.json" />
     <link rel="stylesheet" href="style.css" />
+    <link rel="icon" href="assets/icon.jpg" type="image/jpg" />
   </head>
   <body>
     <div id="objection">
@@ -30,7 +31,23 @@
           <option value="de">German</option>
         </select>
       </div>
+      <div class="setting-item">
+        <label for="volume">Volume:</label>
+        <input type="range" id="volume" min="0" max="100" value="100" />
+        <span id="volumeValue">100%</span>
+      </div>
     </div>
+    <footer>
+      <p>
+        Copyright © 2024, Max Reinartz •
+        <a
+          href="https://github.com/maxreinartz/Slam2Object"
+          target="_blank"
+          rel="noopener"
+          >GitHub</a
+        >
+      </p>
+    </footer>
     <script src="app.js"></script>
   </body>
 </html>

@@ -29,15 +29,18 @@ body {
   background-color: var(--bg-color);
   color: var(--text-color);
   text-align: center;
-  padding: var(--spacing-unit);
+  padding: var(--spacing-unit) 0; /* Remove horizontal padding */
   line-height: 1.6;
   transition: background-color 0.3s ease;
-  min-height: 95vh;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
   justify-content: center;
   font-size: var(--base-size);
   gap: var(--spacing-unit);
+  padding-bottom: calc(var(--spacing-unit) * 2);
+  position: relative;
+  box-sizing: border-box;
 }
 
 h1 {
@@ -69,11 +72,12 @@ h1 {
   padding: var(--spacing-unit);
   border-radius: min(3vw, 1rem);
   box-shadow: var(--shadow);
-  margin: calc(var(--spacing-unit) * 0.5) auto;
-  width: var(--card-width);
+  margin: calc(var(--spacing-unit) * 0.5) auto; /* Center cards */
   display: flex;
   flex-direction: column;
   gap: 2vh;
+  box-sizing: border-box;
+  max-width: min(90vw, 400px); /* Use max-width instead of width */
 }
 
 #currentDb {
@@ -109,7 +113,7 @@ h1 {
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
-  padding: calc(var(--spacing-unit) * 0.5);
+  padding: calc(var(--spacing-unit) * 0.25); /* Reduced from 0.5 to 0.25 */
 }
 
 .setting-item select {
@@ -120,6 +124,62 @@ h1 {
   color: var(--text-color);
   font-size: clamp(0.9rem, calc(0.9rem + 0.5vw), 1.2rem);
   cursor: pointer;
+}
+
+.setting-item input[type="range"] {
+  flex: 1;
+  margin: 0 1rem;
+  accent-color: var(--accent-color);
+  height: 6px;
+  border-radius: 3px;
+  appearance: none;
+  background: linear-gradient(
+    to right,
+    var(--accent-color) 0%,
+    var(--accent-color) 100%,
+    var(--bg-color) 100%
+  );
+  cursor: pointer;
+}
+
+.setting-item input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: var(--accent-color);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.setting-item input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+#volumeValue {
+  min-width: 3.5em;
+  text-align: right;
+}
+
+footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  font-size: 0.9rem;
+  opacity: 0.8;
+  padding: var(--spacing-unit) 0; /* Remove horizontal padding */
+  box-sizing: border-box;
+}
+
+footer a {
+  color: var(--accent-color);
+  text-decoration: none;
+  transition: opacity 0.2s ease;
+}
+
+footer a:hover {
+  opacity: 0.8;
 }
 
 @media (max-height: 600px) {

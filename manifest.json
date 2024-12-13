@@ -3,13 +3,13 @@
   "short_name": "Slam2Object",
   "start_url": ".",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "description": "A PWA to detect loud sounds and display 'Objection!'",
+  "background_color": "#1a1a1a",
+  "description": "A fun website which triggers an 'Objection!' when you make a loud noise (like slamming a table!)",
   "icons": [
     {
-      "src": "icon.png",
-      "sizes": "192x192",
-      "type": "image/png"
+      "src": "/assets/icon.jpg",
+      "sizes": "128x128",
+      "type": "image/jpg"
     }
   ]
 }
