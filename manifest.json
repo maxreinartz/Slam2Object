@@ -5,12 +5,4 @@
   "display": "standalone",
   "background_color": "#1a1a1a",
   "description": "A fun website which triggers an 'Objection!' when you make a loud noise (like slamming a table!)",
-  "icons": [
-    {
-      "src": "assets/icon.jpg",
-      "sizes": "512x512",
-      "type": "image/jpeg",
-      "purpose": "any maskable"
-    }
-  ]
 }
