@@ -30,42 +30,40 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("fetch", (event) => {
   event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        if (response) {
-          return response;
-        }
-        
-        // Try network, fallback to cache if offline
-        return fetch(event.request)
-          .catch(() => {
-            // If network fails and we don't have a cache, return a fallback
-            if (event.request.url.includes('/assets/')) {
-              return new Response('Resource temporarily unavailable', {
-                status: 200,
-                headers: { 'Content-Type': 'text/plain' }
-              });
-            }
-            // Return cached version of index.html for navigation requests
-            return caches.match('/index.html');
+    caches.match(event.request).then((response) => {
+      if (response) {
+        return response;
+      }
+
+      // Try network, fallback to cache if offline
+      return fetch(event.request).catch(() => {
+        // If network fails and we don't have a cache, return a fallback
+        if (event.request.url.includes("/assets/")) {
+          return new Response("Resource temporarily unavailable", {
+            status: 200,
+            headers: { "Content-Type": "text/plain" },
           });
-      })
+        }
+        // Return cached version of index.html for navigation requests
+        return caches.match("/index.html");
+      });
+    })
   );
 });
 
 // Add offline event handling
-self.addEventListener('activate', (event) => {
+self.addEventListener("activate", (event) => {
   event.waitUntil(
     Promise.all([
       self.clients.claim(),
       // Clean up old caches if needed
-      caches.keys().then(cacheNames => {
+      caches.keys().then((cacheNames) => {
         return Promise.all(
           cacheNames
-            .filter(cacheName => cacheName !== 'slam2object-cache')
-            .map(cacheName => caches.delete(cacheName))
+            .filter((cacheName) => cacheName !== "slam2object-cache")
+            .map((cacheName) => caches.delete(cacheName))
         );
-      })
+      }),
     ])
   );
 });
