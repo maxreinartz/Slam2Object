@@ -304,11 +304,11 @@ h1 {
 }
 
 footer {
-  position: absolute;
+  position: relative;
   bottom: 0;
   left: 0;
   right: 0;
-  padding: calc(var(--spacing-unit) * 0.25) 0;
+  padding: calc(var(--spacing-unit) * 0.75) 0;
   font-size: clamp(0.6rem, calc(0.6rem + 0.25vw), 6rem);
 }
 
